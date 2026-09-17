@@ -6,8 +6,8 @@ class MyDocument extends Document {
     return (
       <Html>
         <Head>
-          <meta name="description" content="OneDrive Vercel Index" />
-          <link rel="icon" href="/favicon.ico" />
+          <meta name="description" content="123pan Cloud Index" />
+          <link rel="icon" href="/icons/tsp.png" />
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
           {siteConfig.googleFontLinks.map(link => (

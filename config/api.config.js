@@ -1,31 +1,30 @@
 /**
- * This file contains the configuration for the API endpoints and tokens we use.
+ * This file contains the configuration for the API endpoints and tokens we use to connect 123pan (123云盘).
  *
- * - If you are a OneDrive International user, you would not have to change anything here.
- * - If you are not the admin of your OneDrive for Business account, you may need to define your own clientId/clientSecret,
- *   check documentation for more details.
- * - If you are using a E5 Subscription OneDrive for Business account, the direct links of your files are not the same here.
- *   In which case you would need to change directLinkRegex.
+ * This project uses the **web client API** (the same endpoints the 123pan web app uses), following
+ * OpenList's `123Pan` driver, so no paid Open Platform developer access is required.
+ *
+ * Authentication (choose one):
+ * - PAN_USERNAME + PAN_PASSWORD: the server logs in and re-authenticates automatically when the
+ *   token expires. Recommended.
+ * - PAN_PASSPORT_TOKEN: paste the Bearer token of a logged-in web session (F12 -> Network, copy
+ *   the `authorization` header value of any yun.123pan.com request). No auto-refresh; you must
+ *   replace it when it expires.
  */
 module.exports = {
-  // The clientId and clientSecret are used to authenticate the user with Microsoft Graph API using OAuth. You would
-  // not need to change anything here if you can authenticate with your personal Microsoft account with OneDrive International.
-  clientId: process.env.OAUTH_CLIENT_ID || 'f23f9918-14a5-46f1-9f74-13e57273b8f3',
-  obfuscatedClientSecret: process.env.OAUTH_CLIENT_SECRET || 'U2FsdGVkX1/hHUr0qvtP2dAJuY9MqdXfryBEQW3FkN4AI6MGmoxTOxEANDejnriD/4nJXcg4Lv4sSXI0O5Lf4w==',
+  username: process.env.PAN_USERNAME || '',
+  password: process.env.PAN_PASSWORD || '',
+  passportToken: process.env.PAN_PASSPORT_TOKEN || '',
 
-  // The redirectUri is the URL that the user will be redirected to after they have authenticated with Microsoft Graph API.
-  // Likewise, you would not need to change redirectUri if you are using your personal Microsoft account with OneDrive International.
-  redirectUri: 'http://localhost',
+  // Endpoints of the 123pan web API. Override with PAN_API_BASE / PAN_LOGIN_API for testing.
+  apiBase: process.env.PAN_API_BASE || 'https://yun.123pan.com/b/api',
+  loginApi: process.env.PAN_LOGIN_API || 'https://login.123pan.com/api/user/sign_in',
 
-  // These are the URLs of the OneDrive API endpoints. You would not need to change anything here if you are using OneDrive International
-  // or E5 Subscription OneDrive for Business. You may need to change these if you are using OneDrive 世纪互联.
-  authApi: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-  driveApi: 'https://graph.microsoft.com/v1.0/me/drive',
+  // Sent as the `platform` header and inside the URL signature. Do not change.
+  platform: 'web',
+  appVersion: '3',
 
-  // The scope we require are listed here, in most cases you would not need to change this as well.
-  scope: 'user.read files.read.all offline_access',
-
-  // Cache-Control header, check Vercel documentation for more details. The default settings imply:
+  // Cache-Control header, check Vercel/Cloudflare documentation for more details. The default settings imply:
   // - max-age=0: no cache for your browser
   // - s-maxage=0: cache is fresh for 60 seconds on the edge, after which it becomes stale
   // - stale-while-revalidate: allow serving stale content while revalidating on the edge

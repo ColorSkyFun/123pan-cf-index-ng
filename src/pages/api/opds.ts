@@ -1,9 +1,17 @@
 import { posix as pathPosix } from 'path-browserify'
-import axios from 'redaxios'
 
 import apiConfig from '../../../config/api.config'
 import siteConfig from '../../../config/site.config'
-import { checkAuthRoute, encodePath, getAccessToken } from '.'
+import {
+  checkAuthRoute,
+  encodePath,
+  mimeForExtension,
+  PanApiError,
+  panFileDetail,
+  panListFolder,
+  panToDriveItem,
+  resolvePathId,
+} from '../../utils/panClient'
 import { NextRequest } from 'next/server'
 
 export const runtime = 'edge'
@@ -32,7 +40,7 @@ type DriveItem = {
   size: number
   lastModifiedDateTime: string
   file?: { mimeType?: string }
-  folder?: { childCount: number }
+  folder?: { childCount?: number }
 }
 
 const getOpdsConfig = (): OpdsConfig => {
@@ -123,74 +131,58 @@ export default async function handler(req: NextRequest): Promise<Response> {
     return new Response('OPDS is disabled.', { status: 404 })
   }
 
-  const { path = '/', next = '', sort = '', odpt = '' } = Object.fromEntries(req.nextUrl.searchParams)
+  const { path = '/', next = '', odpt = '' } = Object.fromEntries(req.nextUrl.searchParams)
   if (path === '[...path]') {
     return new Response(JSON.stringify({ error: 'No path specified.' }), { status: 400 })
   }
   if (typeof path !== 'string') {
     return new Response(JSON.stringify({ error: 'Path query invalid.' }), { status: 400 })
   }
-  if (typeof sort !== 'string') {
-    return new Response(JSON.stringify({ error: 'Sort query invalid.' }), { status: 400 })
-  }
-
-  const accessToken = await getAccessToken()
-  if (!accessToken) {
-    return new Response(JSON.stringify({ error: 'No access token.' }), { status: 403 })
-  }
 
   const cleanPath = normalizePathParam(path)
   const normalizedPath = cleanPath || '/'
   const odTokenHeader = (req.headers.get('od-protected-token') as string) ?? odpt
-  const { code, message } = await checkAuthRoute(cleanPath, accessToken, odTokenHeader)
-  if (code !== 200) {
-    return new Response(JSON.stringify({ error: message }), { status: code })
-  }
 
-  const requestPath = encodePath(cleanPath)
-  const requestUrl = `${apiConfig.driveApi}/root${requestPath}`
-  const isRoot = requestPath === ''
   const responseHeaders: Record<string, string> = {
     'Content-Type': 'application/atom+xml;profile=opds-catalog;charset=utf-8',
-    'Cache-Control': message ? 'no-cache' : apiConfig.cacheControlHeader,
   }
 
   try {
-    const { data: identityData } = await axios.get(requestUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      params: {
-        select: 'name,size,id,lastModifiedDateTime,folder,file',
-      },
-    })
+    const { code, message } = await checkAuthRoute(cleanPath, odTokenHeader)
+    if (code !== 200) {
+      return new Response(JSON.stringify({ error: message }), { status: code })
+    }
+
+    const { fileId, isFolder } = await resolvePathId(cleanPath)
 
     let items: DriveItem[] = []
     let nextPage: string | null = null
+    let selfUpdated = new Date().toISOString()
 
-    if ('folder' in identityData) {
-      const { data: folderData } = await axios.get(`${requestUrl}${isRoot ? '' : ':'}/children`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        params: {
-          ...{
-            select: 'name,size,id,lastModifiedDateTime,folder,file',
-            $top: siteConfig.maxItems,
-          },
-          ...(next ? { $skipToken: next } : {}),
-          ...(sort ? { $orderby: sort } : {}),
-        },
-      })
-
-      items = folderData.value as DriveItem[]
-      const nextMatch = folderData['@odata.nextLink']?.match(/&\$skiptoken=(.+)/i)
-      nextPage = nextMatch ? nextMatch[1] : null
+    if (isFolder) {
+      const parsedNext = parseInt(next, 10)
+      const page = Number.isNaN(parsedNext) ? 1 : Math.max(parsedNext, 1)
+      const { fileList, hasNextPage } = await panListFolder(fileId, page)
+      items = fileList.map((item) => panToDriveItem(item) as DriveItem)
+      if (hasNextPage) {
+        nextPage = String(page + 1)
+      }
     } else {
-      items = [identityData as DriveItem]
+      const item = await panFileDetail(fileId)
+      if (!item) {
+        return new Response(JSON.stringify({ error: 'File not found.' }), { status: 404 })
+      }
+      const mapped = panToDriveItem(item) as DriveItem
+      items = [mapped]
+      selfUpdated = mapped.lastModifiedDateTime
     }
 
+    responseHeaders['Cache-Control'] = nextPage ? 'no-cache' : apiConfig.cacheControlHeader
+
     const origin = req.nextUrl.origin
-    const updated = toUpdated(identityData.lastModifiedDateTime)
     const isRootPath = normalizedPath === '/'
     const baseParams = !isRootPath ? { path: cleanPath } : {}
-    const selfUrl = buildUrl(origin, '/api/opds', { ...baseParams, ...(next ? { next } : {}), ...(sort ? { sort } : {}) })
+    const selfUrl = buildUrl(origin, '/api/opds', { ...baseParams, ...(next ? { next } : {}) })
     const startUrl = buildUrl(origin, '/api/opds', {})
     const currentWebUrl = buildWebUrl(origin, normalizedPath)
 
@@ -215,7 +207,7 @@ export default async function handler(req: NextRequest): Promise<Response> {
       links.push(
         buildLink({
           rel: 'next',
-          href: buildUrl(origin, '/api/opds', { ...baseParams, next: nextPage, ...(sort ? { sort } : {}) }),
+          href: buildUrl(origin, '/api/opds', { ...baseParams, next: nextPage }),
           type: 'application/atom+xml;profile=opds-catalog',
         })
       )
@@ -232,7 +224,7 @@ export default async function handler(req: NextRequest): Promise<Response> {
             title: item.name,
             id: entryId,
             updated: entryUpdated,
-            summary: `Folder (${item.folder.childCount} items)`,
+            summary: 'Folder',
             links: [
               {
                 rel: 'subsection',
@@ -245,7 +237,7 @@ export default async function handler(req: NextRequest): Promise<Response> {
         }
 
         const extension = pathPosix.extname(item.name).toLowerCase()
-        const mimeType = item.file?.mimeType ?? extensionMimeTypes[extension] ?? 'application/octet-stream'
+        const mimeType = item.file?.mimeType ?? extensionMimeTypes[extension] ?? mimeForExtension(item.name)
         return buildEntry({
           title: item.name,
           id: entryId,
@@ -265,7 +257,7 @@ export default async function handler(req: NextRequest): Promise<Response> {
       .join('')
 
     const subtitle = opdsConfig.description ? `<subtitle>${escapeXml(opdsConfig.description)}</subtitle>` : ''
-    const author = typeof siteConfig.userPrincipalName === 'string' ? siteConfig.userPrincipalName : opdsConfig.title
+    const author = typeof siteConfig.title === 'string' ? siteConfig.title : opdsConfig.title
 
     const feed = [
       '<?xml version="1.0" encoding="utf-8"?>',
@@ -273,7 +265,7 @@ export default async function handler(req: NextRequest): Promise<Response> {
       `<id>${escapeXml(selfUrl)}</id>`,
       `<title>${escapeXml(opdsConfig.title)}</title>`,
       subtitle,
-      `<updated>${escapeXml(updated)}</updated>`,
+      `<updated>${escapeXml(selfUpdated)}</updated>`,
       `<author><name>${escapeXml(author)}</name></author>`,
       links.join(''),
       entries,
@@ -282,10 +274,12 @@ export default async function handler(req: NextRequest): Promise<Response> {
 
     return new Response(feed, { status: 200, headers: responseHeaders })
   } catch (error: any) {
+    if (error instanceof PanApiError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.code === 404 ? 404 : error.code === 401 ? 403 : 500,
+      })
+    }
     responseHeaders['Content-Type'] = 'application/json;charset=utf-8'
-    return new Response(JSON.stringify({ error: error?.response?.data ?? 'Internal server error.' }), {
-      status: error?.response?.status ?? 500,
-      headers: responseHeaders,
-    })
+    return new Response(JSON.stringify({ error: 'Internal server error.' }), { status: 500, headers: responseHeaders })
   }
 }

@@ -162,10 +162,17 @@ const FileListing: FC<{ query?: ParsedUrlQuery }> = ({ query }) => {
   const { data, error, size, setSize } = useProtectedSWRInfinite(path)
 
   if (error) {
-    // If error includes 403 which means the user has not completed initial setup, redirect to OAuth page
+    // A 403 means the server has no valid 123pan credentials, check the deployment settings
     if (error.status === 403) {
-      router.push('/onedrive-oauth/step-1')
-      return <div />
+      return (
+        <PreviewContainer>
+          <FourOhFour
+            errorMsg={
+              'No valid 123pan access token. Make sure PAN_USERNAME / PAN_PASSWORD (or PAN_PASSPORT_TOKEN) are set correctly in your deployment environment.'
+            }
+          />
+        </PreviewContainer>
+      )
     }
 
     return (

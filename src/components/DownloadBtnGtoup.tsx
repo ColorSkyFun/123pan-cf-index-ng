@@ -77,7 +77,7 @@ const DownloadButtonGroup = () => {
           btnColor="blue"
           btnText={'Download'}
           btnIcon="file-download"
-          btnTitle={'Download the file directly through OneDrive'}
+          btnTitle={'Download the file directly through 123pan'}
         />
         <DownloadButton
           onClickCallback={() => {

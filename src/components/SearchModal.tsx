@@ -48,8 +48,12 @@ function useDriveItemSearch() {
   const searchDriveItem = async (q: string) => {
     const { data } = await axios.get<OdSearchResult>(`/api/search?q=${q}`)
 
-    // Map parentReference to the absolute path of the search result
+    // Map parentReference to the absolute path of the search result, unless the API has already
+    // provided the final site-relative path (it knows BASE_DIRECTORY, the client does not)
     data.map(item => {
+      if (item.path) {
+        return
+      }
       item['path'] =
         'path' in item.parentReference
           ? // OneDrive International have the path returned in the parentReference field
@@ -133,7 +137,11 @@ function SearchResultItemLoadRemote({ result }: { result: OdSearchResult[number]
     )
   }
 
-  const driveItemPath = `${mapAbsolutePath(data.parentReference.path)}/${encodeURIComponent(data.name)}`
+  const driveItemPath =
+    data.path !== undefined
+      ? // The API already resolved the parent's site-relative path
+        `${data.path}/${encodeURIComponent(data.name)}`
+      : `${mapAbsolutePath(data.parentReference.path)}/${encodeURIComponent(data.name)}`
   return (
     <SearchResultItemTemplate
       driveItem={result}
@@ -201,7 +209,9 @@ export default function SearchModal({
             leaveFrom="opacity-100 scale-100"
             leaveTo="opacity-0 scale-95"
           >
-            <div className="my-12 inline-block w-full max-w-3xl transform overflow-hidden rounded border border-gray-400/30 text-left shadow-xl transition-all">
+            {/* relative z-10 lifts the panel above the fixed DialogBackdrop, which would
+                otherwise paint over it and swallow every click (headlessui v2 regression) */}
+            <div className="relative z-10 my-12 inline-block w-full max-w-3xl transform overflow-hidden rounded border border-gray-400/30 text-left shadow-xl transition-all">
               <Dialog.Title
                 as="h3"
                 className="flex items-center space-x-4 border-b border-gray-400/30 bg-gray-50 p-4 dark:bg-gray-800 dark:text-white"

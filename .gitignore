@@ -73,3 +73,6 @@ Temporary Items
 *.vsix
 
 .wrangler
+
+# TypeScript incremental build artifact
+tsconfig.tsbuildinfo

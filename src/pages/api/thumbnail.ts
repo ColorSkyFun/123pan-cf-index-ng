@@ -1,26 +1,17 @@
-import type { OdThumbnail } from '../../types'
-
-import { posix as pathPosix } from 'path-browserify'
-import axios from 'redaxios'
-
-import { checkAuthRoute, encodePath, getAccessToken } from '.'
-import apiConfig from '../../../config/api.config'
 import { NextRequest } from 'next/server'
+
+import apiConfig from '../../../config/api.config'
+import { checkAuthRoute, encodePath, panThumbnailUrl, PanApiError, resolvePathId } from '../../utils/panClient'
 
 export const runtime = 'edge'
 
+/**
+ * 302s to a 123pan thumbnail rendition of the requested file. The web API derives thumbnails
+ * from the listing item's download URL by rewriting its `_width_height` size suffix.
+ */
 export default async function handler(req: NextRequest): Promise<Response> {
-  const accessToken = await getAccessToken()
-
-  if (!accessToken) {
-    return new Response(JSON.stringify({ error: 'No access token.' }), { status: 403 })
-  }
-
   // Get item thumbnails by its path since we will later check if it is protected
   const { path = '', size = 'medium', odpt = '' } = Object.fromEntries(req.nextUrl.searchParams)
-
-  // TODO: Set edge function caching for faster load times, if route is not protected
-  // if (odpt === '') res.setHeader('Cache-Control', apiConfig.cacheControlHeader)
 
   // Check whether the size is valid - must be one of 'large', 'medium', or 'small'
   if (size !== 'large' && size !== 'medium' && size !== 'small') {
@@ -34,37 +25,36 @@ export default async function handler(req: NextRequest): Promise<Response> {
   if (typeof path !== 'string') {
     return new Response(JSON.stringify({ error: 'Path query invalid.' }), { status: 400 })
   }
-  const cleanPath = pathPosix.resolve('/', pathPosix.normalize(path))
+  const cleanPath = encodePath(path)
 
-  const { code, message } = await checkAuthRoute(cleanPath, accessToken, odpt as string)
-  // Status code other than 200 means user has not authenticated yet
-  if (code !== 200) {
-    return new Response(JSON.stringify({ error: message }), { status: code })
+  const headers: Record<string, string> = {
+    'Cache-Control': apiConfig.cacheControlHeader,
   }
-  // If message is empty, then the path is not protected.
-  // Conversely, protected routes are not allowed to serve from cache.
-  // TODO
-
-  const requestPath = encodePath(cleanPath)
-  // Handle response from OneDrive API
-  const requestUrl = `${apiConfig.driveApi}/root${requestPath}`
-  // Whether path is root, which requires some special treatment
-  const isRoot = requestPath === ''
 
   try {
-    const { data } = await axios.get(`${requestUrl}${isRoot ? '' : ':'}/thumbnails`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
+    const odTokenHeader = req.headers.get('od-protected-token') ?? odpt
+    const { code, message } = await checkAuthRoute(cleanPath, odTokenHeader)
+    if (code !== 200) {
+      return new Response(JSON.stringify({ error: message }), { status: code })
+    }
 
-    const thumbnailUrl = data.value && data.value.length > 0 ? (data.value[0] as OdThumbnail)[size].url : null
-    if (thumbnailUrl) {
-      return Response.redirect(thumbnailUrl)
-    } else {
+    const resolved = await resolvePathId(cleanPath)
+    if (resolved.isFolder || !resolved.downloadUrl) {
       return new Response(JSON.stringify({ error: "The item doesn't have a valid thumbnail." }), { status: 400 })
     }
+    const thumbnailUrl = panThumbnailUrl({ DownloadUrl: resolved.downloadUrl, FileName: resolved.name }, size)
+    if (!thumbnailUrl) {
+      return new Response(JSON.stringify({ error: "The item doesn't have a valid thumbnail." }), { status: 400 })
+    }
+    headers['Location'] = thumbnailUrl
+    return new Response(null, { status: 302, headers })
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error?.response?.data ?? 'Internal server error.' }), {
-      status: error?.response?.status,
-    })
+    if (error instanceof PanApiError) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: error.code === 404 ? 404 : 500,
+        headers: { ...headers, 'Cache-Control': 'no-cache' },
+      })
+    }
+    return new Response(JSON.stringify({ error: 'Internal server error.' }), { status: 500, headers })
   }
 }

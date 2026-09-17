@@ -5,16 +5,16 @@ import { useState } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useClipboard } from 'use-clipboard-copy'
 
+import siteConfig from '../../config/site.config'
 import { getBaseUrl } from '../utils/getBaseUrl'
 import { formatModifiedDateTime } from '../utils/fileDetails'
 import { Checkbox, ChildIcon, ChildName, Downloading } from './FileListing'
 import { getStoredToken } from '../utils/protectedRouteHandler'
 
 const GridItem = ({ c, path }: { c: OdFolderChildren; path: string }) => {
-  // We use the generated medium thumbnail for rendering preview images (excluding folders)
-  const hashedToken = getStoredToken(path)
-  const thumbnailUrl =
-    'folder' in c ? null : `/api/thumbnail?path=${path}&size=medium${hashedToken ? `&odpt=${hashedToken}` : ''}`
+  // The listing response carries a direct 123pan thumbnail rendition URL for files (excluding
+  // folders); thumbnails can be disabled entirely through site config.
+  const thumbnailUrl = siteConfig.thumbnails === false || 'folder' in c ? null : c.thumbnail ?? null
 
   // Some thumbnails are broken, so we check for onerror event in the image component
   const [brokenThumbnail, setBrokenThumbnail] = useState(false)
