@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import apiConfig from '../../../config/api.config'
 import { PanApiError, panFileDetail, getPathById, sitePathToHref, toSiteRelativePath } from '../../utils/panClient'
 
+export const runtime = 'edge'
 
 export default async function handler(req: NextRequest): Promise<Response> {
   // Get item details (specifically, its path) by its unique ID on 123pan

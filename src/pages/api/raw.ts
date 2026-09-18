@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import apiConfig from '../../../config/api.config'
 import { checkAuthRoute, encodePath, panDownloadUrl, PanApiError, resolvePathId } from '../../utils/panClient'
 
+export const runtime = 'edge'
 
 export default async function handler(req: NextRequest): Promise<Response> {
   const { path = '/', odpt = '' } = Object.fromEntries(req.nextUrl.searchParams)
