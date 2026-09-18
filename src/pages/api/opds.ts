@@ -14,7 +14,6 @@ import {
 } from '../../utils/panClient'
 import { NextRequest } from 'next/server'
 
-export const runtime = 'edge'
 
 const defaultExtensions = ['.epub', '.pdf', '.mobi', '.azw3', '.azw', '.cbz', '.cbr']
 const extensionMimeTypes: Record<string, string> = {

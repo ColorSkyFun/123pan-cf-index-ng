@@ -27,12 +27,15 @@ Showcase, share, preview, and download files inside *your* 123pan drive -
 
 ## Quick start
 
-1. **Fork and deploy** this repository to Cloudflare Pages (`@cloudflare/next-on-pages` build, same as upstream):
+1. **Fork** this repository and push it to your own GitHub account.
 
-   - Build command: `npx @cloudflare/next-on-pages@1`
-   - Production branch: `main`
+2. **Create a Cloudflare Worker** connected to the repo (the current recommended way to run Next.js on Cloudflare):
 
-2. **Configure the environment variables** of your Cloudflare Pages project:
+   - Cloudflare Dashboard -> **Workers 和 Pages -> 创建 -> 导入仓库**, pick the fork
+   - Framework preset: **Next.js** — Cloudflare auto-generates the build (`npx opennextjs-cloudflare build`) and deploy (`npx opennextjs-cloudflare deploy`) commands
+   - Do **not** check in your own `wrangler.jsonc`; let Cloudflare generate it
+
+3. **Configure environment variables** (Worker -> Settings -> Variables and Secrets, apply to Production and Preview):
 
    | Variable | Required | Description |
    | --- | --- | --- |
@@ -44,9 +47,9 @@ Showcase, share, preview, and download files inside *your* 123pan drive -
 
    \* Account + password is recommended: the server re-authenticates automatically whenever the token expires. If 123pan's risk control blocks server-side logins for your account, fall back to `PAN_PASSPORT_TOKEN`.
 
-3. **Bind a KV namespace** named `PAN_INDEX_KV` to the Pages project (Workers & Pages -> KV -> Create a namespace, then bind it under your Pages project's Functions settings). It caches the access token and path mappings.
+4. **Bind a KV namespace** (Worker -> Settings -> Bindings -> KV namespace): variable name `PAN_INDEX_KV`. It caches the access token and path mappings.
 
-4. Customise [config/site.config.js](config/site.config.js) (title, footer, protected folders, ...) and enjoy!
+5. Redeploy, customise [config/site.config.js](config/site.config.js) (title, footer, protected folders, ...) and enjoy!
 
 ### Docker
 
@@ -58,7 +61,7 @@ docker run -p 8788:8788 \
   123pan-cf-index-ng
 ```
 
-The container runs `wrangler pages dev` with a local KV simulation bound as `PAN_INDEX_KV`, so no extra setup is needed for testing.
+The container serves the OpenNext bundle through `wrangler dev` with a local KV simulation bound as `PAN_INDEX_KV`, so no extra setup is needed for testing.
 
 ## Features
 

@@ -3,7 +3,6 @@ import { NextRequest } from 'next/server'
 import apiConfig from '../../../config/api.config'
 import { checkAuthRoute, encodePath, panThumbnailUrl, PanApiError, resolvePathId } from '../../utils/panClient'
 
-export const runtime = 'edge'
 
 /**
  * 302s to a 123pan thumbnail rendition of the requested file. The web API derives thumbnails

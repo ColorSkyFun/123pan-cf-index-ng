@@ -11,7 +11,6 @@ import {
   toSiteRelativePath,
 } from '../../utils/panClient'
 
-export const runtime = 'edge'
 
 // The 123pan search is drive-wide, while the site only exposes baseDirectory: resolve each hit's
 // real location and keep only the hits inside the shared folder.

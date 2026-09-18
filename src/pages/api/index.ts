@@ -11,7 +11,6 @@ import {
   resolvePathId,
 } from '../../utils/panClient'
 
-export const runtime = 'edge'
 
 /**
  * Sort drive items the way a file index expects: folders first, then files, both by name

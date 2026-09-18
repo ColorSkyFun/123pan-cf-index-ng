@@ -59,9 +59,9 @@
     "wrangler": "^4.76.0"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^10.0.1",
+    "@opennextjs/cloudflare": "^1.20.6",
     "@tailwindcss/postcss": "^4.2.2",
     "@types/cors": "^2.8.19",
     "@types/crypto-js": "^4.2.2",
@@ -73,6 +73,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@typescript-eslint/parser": "^8.57.2",
     "autoprefixer": "^10.4.27",
+    "esbuild": "^0.25.4",
     "eslint": "10.1.0",
     "eslint-config-next": "15.5.2",
     "eslint-config-prettier": "^10.1.8",
@@ -81,11 +82,7 @@
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4.2.2",
-    "typescript": "6.0.2",
-    "vercel": "50.35.0"
-  },
-  "overrides": {
-    "vercel": "$vercel"
+    "typescript": "6.0.2"
   },
   "prettier": {
     "printWidth": 120,
@@ -95,5 +92,6 @@
     "plugins": [
       "prettier-plugin-tailwindcss"
     ]
-  }
+  },
+  "packageManager": "pnpm@10.11.1"
 }

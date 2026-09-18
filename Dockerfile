@@ -1,4 +1,4 @@
-FROM node:24-bullseye-slim AS build
+FROM node:24-slim AS build
 
 RUN npm install -g pnpm
 
@@ -6,15 +6,16 @@ COPY . /src
 WORKDIR /src
 
 RUN pnpm install
-RUN npx @cloudflare/next-on-pages
+RUN npx opennextjs-cloudflare build
 
-FROM node:24-bullseye-slim AS runtime
+FROM node:24-slim AS runtime
 
-COPY --from=build /src/.vercel /app/.vercel
+COPY --from=build /src/.open-next /app/.open-next
+COPY --from=build /src/scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 WORKDIR /app
-RUN npm install wrangler@4.76.0
-RUN apt update && apt -y install ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN npm install -g wrangler@4.76.0 \
+    && chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 8788
 
-CMD ["npx", "wrangler", "pages", "dev", ".vercel/output/static", "--ip=0.0.0.0", "--compatibility-flag=nodejs_compat", "--compatibility-date=2023-10-10", "--kv=PAN_INDEX_KV"]
+CMD ["/app/docker-entrypoint.sh"]

@@ -76,3 +76,7 @@ Temporary Items
 
 # TypeScript incremental build artifact
 tsconfig.tsbuildinfo
+.open-next/
+.wrangler/
+.dev.vars
+pnpm-workspace.yaml
