@@ -11,10 +11,13 @@
  *   the `authorization` header value of any yun.123pan.com request). No auto-refresh; you must
  *   replace it when it expires.
  */
+// Read lazily via getters: the edge runtime may recycle isolates slowly, and
+// getters make credential changes (e.g. a freshly pasted passport token)
+// take effect without waiting for old instances to die.
 module.exports = {
-  username: process.env.PAN_USERNAME || '',
-  password: process.env.PAN_PASSWORD || '',
-  passportToken: process.env.PAN_PASSPORT_TOKEN || '',
+  get username() { return process.env.PAN_USERNAME || '' },
+  get password() { return process.env.PAN_PASSWORD || '' },
+  get passportToken() { return process.env.PAN_PASSPORT_TOKEN || '' },
 
   // Endpoints of the 123pan web API. Override with PAN_API_BASE / PAN_LOGIN_API for testing.
   apiBase: process.env.PAN_API_BASE || 'https://yun.123pan.com/b/api',
