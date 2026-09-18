@@ -1,6 +1,8 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "that-sky-project-achive",
+	"workers_dev": true,
+	"preview_urls": false,
 	"main": ".open-next/worker.js",
 	"compatibility_date": "2026-03-17",
 	"compatibility_flags": [
@@ -13,7 +15,7 @@
 	},
 	"kv_namespaces": [
 		{
-			"binding": "that-sky-project-archive",
+			"binding": "PAN_INDEX_KV",
 			"id": "b3d5cba1784b4385864fc3614fcc5d4c"
 		}
 	],
