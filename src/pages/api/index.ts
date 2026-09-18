@@ -80,11 +80,12 @@ export default async function handler(req: NextRequest): Promise<Response> {
 
     return NextResponse.json(response, { headers })
   } catch (error: any) {
-    if (error instanceof PanApiError) {
-      // Map the 123pan authentication failure to 403 like the OneDrive version did
-      const status = error.code === 404 ? 404 : error.code === 401 ? 403 : 500
-      return new Response(JSON.stringify({ error: error.message }), { status, headers: { 'Cache-Control': 'no-cache' } })
-    }
-    return new Response(JSON.stringify({ error: 'Internal server error.' }), { status: 500 })
+    // TEMP DEBUG: surface the real error on production
+    const detail = `${error?.name}: ${error?.message}\n${String(error?.stack ?? '').slice(0, 1000)}`
+    console.error('[api] error:', detail)
+    return new Response(JSON.stringify({ error: 'Internal server error.', detail }), {
+      status: 500,
+      headers: { 'content-type': 'application/json', 'Cache-Control': 'no-cache' },
+    })
   }
 }

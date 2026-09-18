@@ -24,5 +24,8 @@
 			"binding": "WORKER_SELF_REFERENCE",
 			"service": "that-sky-project-achive"
 		}
-	]
+	],
+	"vars": {
+		"BASE_DIRECTORY": "/tsp"
+	}
 }
